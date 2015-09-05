@@ -154,7 +154,7 @@ public class MapsActivity extends FragmentActivity {
         double b2 = lng_b / pk;
 
         double t1 = Math.cos(a1) * Math.cos(a2) * Math.cos(b1) * Math.cos(b2);
-        double t2 = Math.cos(a1) * Math.sin(a2) * Math.cos(b1) * Math.sin(b2);
+        double t2 = Math.cos(a1) * Math.sin(a2) *   Math.cos(b1) * Math.sin(b2);
         double t3 = Math.sin(a1) * Math.sin(b1);
         double tt = Math.acos(t1 + t2 + t3);
         double dist = 6366000 * tt;
@@ -171,9 +171,9 @@ public class MapsActivity extends FragmentActivity {
     }
 
     public void sort() {
-        int niceDistance = 50;
-        int step = 30;
-        for (int i = 0; i < allPointsLatLong.size() - step - 1; i += step) {
+        int niceDistance = 30;
+        int step = 50;
+        for (int i = 0; i < allPointsLatLong.size() - step; ) {
             LatLng average = average(i, step);
             if (
                     gps2m(allPointsLatLong.get(i).latitude, allPointsLatLong.get(i).longitude, average.latitude, average.longitude) < niceDistance
@@ -182,10 +182,12 @@ public class MapsActivity extends FragmentActivity {
                     && gps2m(allPointsLatLong.get(i + (3*step/4)).latitude, allPointsLatLong.get(i + (3*step/4)).longitude, average.latitude, average.longitude) < niceDistance
                     && gps2m(allPointsLatLong.get(i + step).latitude, allPointsLatLong.get(i + step).longitude, average.latitude, average.longitude) < niceDistance
             ) {
-                for (int j = 0; j < step; j++) {
-                    allPointsLatLong.remove(i);
+                for (int j = 1; j < step; j++) {
+                    allPointsLatLong.remove(i+1);
+                    continue;
                 }
             }
+            i++;
         }
         System.out.println(123);
     }
