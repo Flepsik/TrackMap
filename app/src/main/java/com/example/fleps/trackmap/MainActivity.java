@@ -8,6 +8,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 
 
 import com.example.fleps.trackmap.entity.TrackPoint;
@@ -38,10 +39,11 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
                     files.remove(i);
                 else i++;
             }
-            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                    android.R.layout.simple_list_item_activated_1, files);
-            listView.setAdapter(adapter);
-            listView.setOnItemClickListener(this);
+                ((TextView) findViewById(R.id.textView)).setText(files.size() + " files found");
+                ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                        android.R.layout.simple_list_item_activated_1, files);
+                listView.setAdapter(adapter);
+                listView.setOnItemClickListener(this);
         } catch (IOException e) {
             e.printStackTrace();
         }
