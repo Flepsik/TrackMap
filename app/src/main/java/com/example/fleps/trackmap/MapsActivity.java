@@ -1,9 +1,11 @@
 package com.example.fleps.trackmap;
 
+import android.app.Activity;
 import android.graphics.Color;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.FloatMath;
+import android.widget.Toast;
 
 import com.example.fleps.trackmap.entity.TrackPoint;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -36,20 +38,21 @@ public class MapsActivity extends FragmentActivity {
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private ArrayList<TrackPoint> trackPoints;
-    private ArrayList<LatLng> allPointsLatLong;
+    private LinkedList<LatLng> allPointsLatLong;
     private ArrayList<LatLng> reallyAllPoints;
+    private Activity activity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
         trackPoints = new ArrayList<>();
-        allPointsLatLong = new ArrayList<>();
+        allPointsLatLong = new LinkedList<>();
         reallyAllPoints = new ArrayList<>();
         LoadThread loadThread = new LoadThread();
         loadThread.start();
         setUpMapIfNeeded();
-
+        activity = this;
     }
 
     public class LoadThread extends Thread {
@@ -95,52 +98,40 @@ public class MapsActivity extends FragmentActivity {
             NodeList nodelistExtra = elementRoot.getElementsByTagName("extraData");
 
             for (int i = 0; i < noteListTrkpt.getLength(); i++) {
+                try {
+                    Node node = noteListTrkpt.item(i);
+                    Node noteExtra = nodelistExtra.item(i);
 
-                Node node = noteListTrkpt.item(i);
-                Node noteExtra = nodelistExtra.item(i);
+                    NamedNodeMap attributes = node.getAttributes();
+                    NamedNodeMap attributesExtra = noteExtra.getAttributes();
 
-                NamedNodeMap attributes = node.getAttributes();
-                NamedNodeMap attributesExtra = noteExtra.getAttributes();
+                    Double latitude = Double.parseDouble(attributes.getNamedItem("lat").getTextContent());
+                    Double longitude = Double.parseDouble(attributes.getNamedItem("lon").getTextContent());
+                    Double azimuth = Double.parseDouble(attributesExtra.getNamedItem("azimuth").getTextContent());
+                    Double speedInKnots = Double.parseDouble(attributesExtra.getNamedItem("speedInKnots").getTextContent());
 
-                Double latitude = Double.parseDouble(attributes.getNamedItem("lat").getTextContent());
-                Double longitude = Double.parseDouble(attributes.getNamedItem("lon").getTextContent());
-                Double azimuth = Double.parseDouble(attributesExtra.getNamedItem("azimuth").getTextContent());
-                Double speedInKnots = Double.parseDouble(attributesExtra.getNamedItem("speedInKnots").getTextContent());
-
-                NodeList childNodes = node.getChildNodes();
-                String newTime = searchNodeListForTaget(childNodes, "time");
-
-                TrackPoint newGpxNode = new TrackPoint(latitude, longitude, speedInKnots, azimuth, newTime);
-                allPointsLatLong.add(new LatLng(latitude, longitude));
-                reallyAllPoints.add(new LatLng(latitude, longitude));
-                if (trackPoints.size() > 0) {
-                    if (Math.abs(azimuth - trackPoints.get(trackPoints.size() - 1).getAzimuth()) > 1
-                            && speedInKnots > 3
-                            ) {
-                        // if((int) newGpxNode.getAzimuth() != (int) trackPoints.get(trackPoints.size() - 1).getAzimuth()) {
-                        trackPoints.add(newGpxNode);
-                    }
-                } else {
+                    NodeList childNodes = node.getChildNodes();
+                    String newTime = searchNodeListForTaget(childNodes, "time");
+                    if (newTime.equals("")) throw new Exception();
+                    TrackPoint newGpxNode = new TrackPoint(latitude, longitude, speedInKnots, azimuth, newTime);
+                    allPointsLatLong.add(new LatLng(latitude, longitude));
+                    reallyAllPoints.add(new LatLng(latitude, longitude));
                     trackPoints.add(newGpxNode);
+                } catch (Exception e) {
+
                 }
             }
 
             fileInputStream.close();
 
-        } catch (ParserConfigurationException e) {
-            // TODO Auto-generated catch block
+        } catch (Exception e) {
             e.printStackTrace();
-        } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (SAXException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(activity, "Can't read file.", Toast.LENGTH_LONG).show();
+                }
+            });
         }
     }
 
@@ -154,7 +145,7 @@ public class MapsActivity extends FragmentActivity {
         double b2 = lng_b / pk;
 
         double t1 = Math.cos(a1) * Math.cos(a2) * Math.cos(b1) * Math.cos(b2);
-        double t2 = Math.cos(a1) * Math.sin(a2) *   Math.cos(b1) * Math.sin(b2);
+        double t2 = Math.cos(a1) * Math.sin(a2) * Math.cos(b1) * Math.sin(b2);
         double t3 = Math.sin(a1) * Math.sin(b1);
         double tt = Math.acos(t1 + t2 + t3);
         double dist = 6366000 * tt;
@@ -167,7 +158,7 @@ public class MapsActivity extends FragmentActivity {
             averageLat += allPointsLatLong.get(j + i).latitude;
             averageLong += allPointsLatLong.get(j + i).longitude;
         }
-        return new LatLng(averageLat/step, averageLong/step);
+        return new LatLng(averageLat / step, averageLong / step);
     }
 
     public void sort() {
@@ -177,13 +168,13 @@ public class MapsActivity extends FragmentActivity {
             LatLng average = average(i, step);
             if (
                     gps2m(allPointsLatLong.get(i).latitude, allPointsLatLong.get(i).longitude, average.latitude, average.longitude) < niceDistance
-                    && gps2m(allPointsLatLong.get(i + (step/4)).latitude, allPointsLatLong.get(i + (step/4)).longitude, average.latitude, average.longitude) < niceDistance
-                    && gps2m(allPointsLatLong.get(i + (step/2)).latitude, allPointsLatLong.get(i + (step/2)).longitude, average.latitude, average.longitude) < niceDistance
-                    && gps2m(allPointsLatLong.get(i + (3*step/4)).latitude, allPointsLatLong.get(i + (3*step/4)).longitude, average.latitude, average.longitude) < niceDistance
-                    && gps2m(allPointsLatLong.get(i + step).latitude, allPointsLatLong.get(i + step).longitude, average.latitude, average.longitude) < niceDistance
-            ) {
+                            && gps2m(allPointsLatLong.get(i + (step / 4)).latitude, allPointsLatLong.get(i + (step / 4)).longitude, average.latitude, average.longitude) < niceDistance
+                            && gps2m(allPointsLatLong.get(i + (step / 2)).latitude, allPointsLatLong.get(i + (step / 2)).longitude, average.latitude, average.longitude) < niceDistance
+                            && gps2m(allPointsLatLong.get(i + (3 * step / 4)).latitude, allPointsLatLong.get(i + (3 * step / 4)).longitude, average.latitude, average.longitude) < niceDistance
+                            && gps2m(allPointsLatLong.get(i + step).latitude, allPointsLatLong.get(i + step).longitude, average.latitude, average.longitude) < niceDistance
+                    ) {
                 for (int j = 1; j < step; j++) {
-                    allPointsLatLong.remove(i+1);
+                    allPointsLatLong.remove(i + 1);
                     continue;
                 }
             }
